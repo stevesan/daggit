@@ -80,8 +80,6 @@ def gen():
     for var in VARS:
         var2topsorted[var] = topsort(var)[1:]
 
-    # TODO we should verify that for each consecutive pair u,v in any list, v shows up after u in all other lists
-
     for setter in SETTERS:
         # Do a topological sort of all nodes affected by all the vars of this setter.
         # Keep state between individual topsort calls to accomplish this.
