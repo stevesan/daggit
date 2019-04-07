@@ -4,20 +4,24 @@ VARS = [
     "teamColor", "hatMaterial"
 ]
 
-NODES = [
-    {
-        "onChange": ["teamColor", "hatMaterial"],
+NODES = {
+    "hatColor": {
+        "deps": ["teamColor", "hatMaterial"],
         "code": "if(hatMaterial != null) hatMaterial.color = teamColor;"
     },
-    {
-        'onChange': ['teamColor'],
-        'code': 'shirtColor.color = teamColor;'
+    "shirtColor": {
+        'deps': ['teamColor'],
+        'code': 'shirtMaterial.color = teamColor;'
     },
-    {
-        'onChange': ['teamColor'],
-        'code': 'pantsColor.color = teamColor;'
+    "pantsColor": {
+        'deps': ['teamColor'],
+        'code': 'pantsMaterial.color = teamColor;'
+    },
+    "billboard": {
+        'deps': ['hatColor', 'shirtColor', 'pantsColor'],
+        'code': 'regenBillboard();'
     }
-]
+}
 
 SETTERS = [
     ["teamColor"],
@@ -26,8 +30,59 @@ SETTERS = [
 ]
 
 
-def node_func_name(node):
-    return 'on_' + '_or_'.join(node['onChange']) + '_change_' + md5.new(node['code']).hexdigest()[0:8]
+def cap(s):
+    return s[0].capitalize() + s[1:]
+
+
+def update_func_name(node_name):
+    return 'update' + cap(node_name)
+
+
+def dependents(u):
+    return [v for v, info in NODES.items() if u in info['deps']]
+
+
+def topsort(u, visited=None, topsorted=None):
+    if topsorted is None:
+        topsorted = []
+    if visited is None:
+        visited = set()
+    visited.add(u)
+    for v in dependents(u):
+        if v not in visited:
+            topsort(v, visited, topsorted)
+    topsorted.insert(0, u)
+    return topsorted
+
+
+def merge_sorted(a, b):
+    if len(a) == 0:
+        return b
+    if len(b) == 0:
+        return a
+    c = []
+    i = 0
+    j = 0
+    while True:
+        if i < len(a):
+            if len(c) == 0 or a[i] != c[-1]:
+                c.append(a[i])
+            i += 1
+        if j < len(b):
+            if b[j] != c[-1]:
+                c.append(b[j])
+            j += 1
+
+        if i >= len(a) and j >= len(b):
+            break
+    return c
+
+
+assert merge_sorted([1], [2]) == [1, 2]
+assert merge_sorted([1], [1, 2]) == [1, 2]
+assert merge_sorted([1, 2], [1, 2]) == [1, 2]
+assert merge_sorted([1, 2], [1]) == [1, 2]
+assert merge_sorted([1, 2], [2]) == [1, 2]
 
 
 def gen():
@@ -36,65 +91,53 @@ def gen():
 
     print ''
 
-    dep2nodes = {}
-
-    for i, node in enumerate(NODES):
-        func_name = node_func_name(node)
+    # Emit function defs for internal nodes
+    for name, node in NODES.items():
+        func_name = update_func_name(name)
         print 'function ' + func_name + '() {'
         print '  ' + node['code']
         print '}'
         print ''
 
-        for dep in node['onChange']:
-            if dep not in dep2nodes:
-                dep2nodes[dep] = []
+    # Perform topological sort, as well as tracking which nodes are affected by which vars.
+    var2topsorted = {}
+    for var in VARS:
+        var2topsorted[var] = topsort(var)[1:]
 
-            dep2nodes[dep].append(i)
+    for var, ts in var2topsorted.items():
+        print var
+        print ts
 
-    print ''
+    # TODO we should verify that for each consecutive pair u,v in any list, v shows up after u in all other lists
 
     for setter in SETTERS:
-        possibly_affected_nodes = set()
-        just_one = len(setter) == 1
-
+        sorted_affected_nodes = []
         for var in setter:
-            for node_id in dep2nodes[var]:
-                possibly_affected_nodes.add(node_id)
+            sorted_affected_nodes = merge_sorted(
+                sorted_affected_nodes, var2topsorted[var])
 
         print 'function set_' + \
             '_and_'.join(setter) + \
             '(' + ', '.join(['new_' + v for v in setter]) + ') {'
 
-        if not just_one:
-            for node_id in possibly_affected_nodes:
-                node = NODES[node_id]
-                print ' let call_' + node_func_name(node) + ' = false;'
+        for node_name in sorted_affected_nodes:
+            print ' let call_' + update_func_name(node_name) + ' = false;'
 
         for var in setter:
             print '  if(' + var + ' != new_' + var + ') {'
             print '    ' + var + ' = new_' + var + ';'
 
-            if not just_one:
-                # Mark all affected nodes as need-to-call
-                for node_id in dep2nodes[var]:
-                    node = NODES[node_id]
-                    print '    call_' + node_func_name(node) + ' = true;'
-
-            else:
-              # Call all
-                for node_id in dep2nodes[var]:
-                    node = NODES[node_id]
-                    print '    ' + node_func_name(node) + '();'
+            # Mark all affected nodes as need-to-call
+            for node_name in var2topsorted[var]:
+                print '    call_' + update_func_name(node_name) + ' = true;'
 
             print '  }'
 
-        if not just_one:
-            print ''
-            for node_id in list(possibly_affected_nodes):
-                node = NODES[node_id]
-                print '  if(call_' + node_func_name(node) + ') {'
-                print '    ' + node_func_name(node) + '();'
-                print '  }'
+        print ''
+        for node_name in list(sorted_affected_nodes):
+            print '  if(call_' + update_func_name(node_name) + ') {'
+            print '    ' + update_func_name(node_name) + '();'
+            print '  }'
         print '}'
         print ''
 
