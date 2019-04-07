@@ -1,31 +1,37 @@
 import md5
 
+# Example: a simple character customization screen where you can change your 1) team color or 2) your hat material (like..different logos on the hat maybe). Nothing else.
 VARS = [
     "teamColor", "hatMaterial"
 ]
 
 NODES = {
+    # Whatever the current hat material is, make sure to keep it updated with the team color.
     "hatColor": {
         "deps": ["teamColor", "hatMaterial"],
         "code": "if(hatMaterial != null) hatMaterial.color = teamColor;"
     },
+    # Make sure the team color is on the shirt. (Note: we don't allow changing the shirt material)
     "shirtColor": {
         'deps': ['teamColor'],
         'code': 'shirtMaterial.color = teamColor;'
     },
-    "pantsColor": {
-        'deps': ['teamColor'],
-        'code': 'pantsMaterial.color = teamColor;'
-    },
+    # The low LOD billboard for the character, that should be updated when any visual option changes.
     "billboard": {
-        'deps': ['hatColor', 'shirtColor', 'pantsColor'],
+        'deps': ['hatMaterial', 'hatColor', 'shirtColor'],
         'code': 'regenBillboard();'
     }
 }
 
+# TODO: what if, for example, the billboard quantizes the team color, so not every change to team color necessarily needs to cause a billboard regen?
+# Should we have another node, like "billboardColor", that relies on team color, but doesn't fire its downstreams if it doesn't change?
+# I guess we do need the general notion of, intermediates may not necessarily change, thus don't call FURTHER downstreams..
+# Well, i think even at this point, this is still useful.
+
 SETTERS = [
     ["teamColor"],
     ["hatMaterial"],
+    # Optimization: If there's a way to change both at the same time, such as presets, avoid some redundant calls.
     ["teamColor", "hatMaterial"]
 ]
 
@@ -55,36 +61,6 @@ def topsort(u, visited=None, topsorted=None):
     return topsorted
 
 
-def merge_sorted(a, b):
-    if len(a) == 0:
-        return b
-    if len(b) == 0:
-        return a
-    c = []
-    i = 0
-    j = 0
-    while True:
-        if i < len(a):
-            if len(c) == 0 or a[i] != c[-1]:
-                c.append(a[i])
-            i += 1
-        if j < len(b):
-            if b[j] != c[-1]:
-                c.append(b[j])
-            j += 1
-
-        if i >= len(a) and j >= len(b):
-            break
-    return c
-
-
-assert merge_sorted([1], [2]) == [1, 2]
-assert merge_sorted([1], [1, 2]) == [1, 2]
-assert merge_sorted([1, 2], [1, 2]) == [1, 2]
-assert merge_sorted([1, 2], [1]) == [1, 2]
-assert merge_sorted([1, 2], [2]) == [1, 2]
-
-
 def gen():
     for var in VARS:
         print "let " + var + ";"
@@ -100,13 +76,10 @@ def gen():
         print ''
 
     # Perform topological sort, as well as tracking which nodes are affected by which vars.
+    # Top-order actually doesn't matter here - this is only used to figure out the affected nodes to mark dirty.
     var2topsorted = {}
     for var in VARS:
         var2topsorted[var] = topsort(var)[1:]
-
-    for var, ts in var2topsorted.items():
-        print var
-        print ts
 
     # TODO we should verify that for each consecutive pair u,v in any list, v shows up after u in all other lists
 
