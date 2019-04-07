@@ -1,4 +1,3 @@
-import md5
 
 # Example: a simple character customization screen where you can change your 1) team color or 2) your hat material (like..different logos on the hat maybe). Nothing else.
 VARS = [
@@ -93,27 +92,28 @@ def gen():
         # Shave off the variables themselves from the top sort
         sorted_affected_nodes = sorted_affected_nodes[len(setter):]
 
-        print 'function set_' + \
-            '_and_'.join(setter) + \
-            '(' + ', '.join(['new_' + v for v in setter]) + ') {'
+        print 'function set' + \
+            'And'.join([cap(s) for s in setter]) + \
+            '(' + ', '.join(['new' + cap(v) for v in setter]) + ') {'
 
         for node_name in sorted_affected_nodes:
-            print '  let call_' + update_func_name(node_name) + ' = false;'
+            print '  let call' + cap(update_func_name(node_name)) + ' = false;'
         print ''
 
         for var in setter:
-            print '  if(' + var + ' != new_' + var + ') {'
-            print '    ' + var + ' = new_' + var + ';'
+            print '  if(' + var + ' != new' + cap(var) + ') {'
+            print '    ' + var + ' = new' + cap(var) + ';'
 
             # Mark all affected nodes as need-to-call
             for node_name in var2topsorted[var]:
-                print '    call_' + update_func_name(node_name) + ' = true;'
+                print '    call' + \
+                    cap(update_func_name(node_name)) + ' = true;'
 
             print '  }'
             print ''
 
         for node_name in list(sorted_affected_nodes):
-            print '  if(call_' + update_func_name(node_name) + ') {'
+            print '  if(call' + cap(update_func_name(node_name)) + ') {'
             print '    ' + update_func_name(node_name) + '();'
             print '  }'
             print ''
