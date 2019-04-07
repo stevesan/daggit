@@ -111,17 +111,22 @@ def gen():
     # TODO we should verify that for each consecutive pair u,v in any list, v shows up after u in all other lists
 
     for setter in SETTERS:
+        # Do a topological sort of all nodes affected by all the vars of this setter.
+        # Keep state between individual topsort calls to accomplish this.
         sorted_affected_nodes = []
+        visited = set()
         for var in setter:
-            sorted_affected_nodes = merge_sorted(
-                sorted_affected_nodes, var2topsorted[var])
+            topsort(var, visited, sorted_affected_nodes)
+        # Shave off the variables themselves from the top sort
+        sorted_affected_nodes = sorted_affected_nodes[len(setter):]
 
         print 'function set_' + \
             '_and_'.join(setter) + \
             '(' + ', '.join(['new_' + v for v in setter]) + ') {'
 
         for node_name in sorted_affected_nodes:
-            print ' let call_' + update_func_name(node_name) + ' = false;'
+            print '  let call_' + update_func_name(node_name) + ' = false;'
+        print ''
 
         for var in setter:
             print '  if(' + var + ' != new_' + var + ') {'
@@ -132,12 +137,13 @@ def gen():
                 print '    call_' + update_func_name(node_name) + ' = true;'
 
             print '  }'
+            print ''
 
-        print ''
         for node_name in list(sorted_affected_nodes):
             print '  if(call_' + update_func_name(node_name) + ') {'
             print '    ' + update_func_name(node_name) + '();'
             print '  }'
+            print ''
         print '}'
         print ''
 
