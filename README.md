@@ -33,7 +33,7 @@ setA(newA) {
   }
 }
 ```
-Another optimization we can do is, what if user code wants to update both A and B from the same callsite? That would result in updateC getting called twice, wastefully. You really should just set A and B, and then call updateC once, right? With hand-written setters or event subscriptions, I'm not really sure how you cleanly avoid this. But with code generation, we can ask it to explicitly generate a compound setter for A and B. The result would be:
+Another optimization we can do is, what if user code wants to update both A and B from the same callsite? That would result in updateC getting called twice, wastefully. You really should just set A and B, and then call updateC once, right? With hand-written setters or event subscriptions, I'm not really sure how you cleanly accomplish this. But with code generation, we can ask it to explicitly generate a compound setter for A and B. The result would be:
 ```
 setAandB(newA, newB) {
   if(a != newA || b != newB) {
@@ -43,4 +43,4 @@ setAandB(newA, newB) {
   }
 }
 ```
-Tada! Now the process of optimizing updates is pretty easy: Just find slow parts, see if a compound setter would be help (ie. you see that redundant updates are the bottleneck), and if so just add one and use it.
+Tada! Now the process of optimizing updates is pretty easy: Just find slow parts, see if a compound setter would be help (ie. you see that redundant updates are the bottleneck), and if so just generate one and call it.
