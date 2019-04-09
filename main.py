@@ -1,21 +1,26 @@
 
-# Example: a simple character customization screen where you can change your 1) team color or 2) your hat material (like..different logos on the hat maybe). Nothing else.
+# Example: a simple character customization screen where you can change
+# your 1) team color or 2) your hat material (like..different logos on the
+# hat maybe). Nothing else.
 VARS = [
     "teamColor", "hatMaterial"
 ]
 
 NODES = {
-    # Whatever the current hat material is, make sure to keep it updated with the team color.
+    # Whatever the current hat material is, make sure to keep it updated with
+    # the team color.
     "hatColor": {
         "deps": ["teamColor", "hatMaterial"],
         "code": "if(hatMaterial != null) hatMaterial.color = teamColor;"
     },
-    # Make sure the team color is on the shirt. (Note: we don't allow changing the shirt material)
+    # Make sure the team color is on the shirt. (Note: we don't allow changing
+    # the shirt material)
     "shirtColor": {
         'deps': ['teamColor'],
         'code': 'shirtMaterial.color = teamColor;'
     },
-    # The low LOD billboard for the character, that should be updated when any visual option changes.
+    # The low LOD billboard for the character, that should be updated when any
+    # visual option changes.
     "billboard": {
         'deps': ['hatMaterial', 'hatColor', 'shirtColor'],
         'code': 'regenBillboard();'
@@ -30,7 +35,8 @@ NODES = {
 SETTERS = [
     ["teamColor"],
     ["hatMaterial"],
-    # Optimization: If there's a way to change both at the same time, such as presets, avoid some redundant calls.
+    # Optimization: If there's a way to change both at the same time, such as
+    # presets, avoid some redundant calls.
     ["teamColor", "hatMaterial"]
 ]
 
@@ -75,7 +81,8 @@ def gen():
         print ''
 
     # Perform topological sort, as well as tracking which nodes are affected by which vars.
-    # Top-order actually doesn't matter here - this is only used to figure out the affected nodes to mark dirty.
+    # Top-order actually doesn't matter here - this is only used to figure out
+    # the affected nodes to mark dirty.
     var2topsorted = {}
     for var in VARS:
         var2topsorted[var] = topsort(var)[1:]
